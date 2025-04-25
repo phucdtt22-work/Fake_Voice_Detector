@@ -314,6 +314,11 @@ def serve_profile_image(request, profile_id):
         if hasattr(grid_file, 'length'):
             response['Content-Length'] = grid_file.length
         
+        # Add cache-busting headers to prevent browser caching
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        
         return response
     except UserProfile.DoesNotExist:
         raise Http404("Profile not found")

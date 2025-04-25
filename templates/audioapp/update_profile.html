@@ -20,11 +20,12 @@
                             <div class="col-md-4 text-center mb-4 mb-md-0">
                                 <div class="profile-image-container position-relative mb-3 mx-auto" style="width: 180px; height: 180px;">
                                     {% if profile.profile_picture %}
-                                    <img src="{% url 'serve_profile_image' profile.id %}" alt="Profile" class="rounded-circle img-thumbnail shadow" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <img id="profile-preview" src="{% url 'serve_profile_image' profile.id %}?v={{ profile.id }}{{ request.GET.t|default:''}}{% now 'U' %}" alt="Profile" class="rounded-circle img-thumbnail shadow" style="width: 100%; height: 100%; object-fit: cover;">
                                     {% else %}
-                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center h-100 shadow">
+                                    <div id="default-image" class="rounded-circle bg-light d-flex align-items-center justify-content-center h-100 shadow">
                                         <i class="bi bi-person-fill text-secondary" style="font-size: 5rem;"></i>
                                     </div>
+                                    <img id="profile-preview" src="" alt="Profile" class="rounded-circle img-thumbnail shadow d-none" style="width: 100%; height: 100%; object-fit: cover;">
                                     {% endif %}
                                     
                                     <div class="upload-overlay position-absolute top-0 start-0 w-100 h-100 rounded-circle d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s; cursor: pointer;">
@@ -82,7 +83,7 @@
                             <a href="{% url 'profile' %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary px-4">
+                            <button type="submit" id="save-button" class="btn btn-primary px-4">
                                 <i class="bi bi-check2-circle me-2"></i>Save Changes
                             </button>
                         </div>
@@ -100,6 +101,8 @@
         const imageContainer = document.querySelector('.profile-image-container');
         const overlay = document.querySelector('.upload-overlay');
         const fileInput = document.getElementById('{{ form.profile_picture.id_for_label }}');
+        const profilePreview = document.getElementById('profile-preview');
+        const defaultImage = document.getElementById('default-image');
         
         if (imageContainer && overlay && fileInput) {
             // Show overlay on hover
@@ -114,6 +117,24 @@
             // Trigger file input when overlay is clicked
             overlay.addEventListener('click', function() {
                 fileInput.click();
+            });
+            
+            // Show image preview when file is selected
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        profilePreview.src = e.target.result;
+                        profilePreview.classList.remove('d-none');
+                        
+                        if (defaultImage) {
+                            defaultImage.classList.add('d-none');
+                        }
+                    }
+                    
+                    reader.readAsDataURL(this.files[0]);
+                }
             });
             
             // Update bio textarea styling
