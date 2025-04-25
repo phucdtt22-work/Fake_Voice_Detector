@@ -86,6 +86,21 @@
         width: 100%;
         margin-bottom: 15px;
     }
+    .model-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+    }
+    .model-badge {
+        margin-left: 8px;
+        font-size: 11px;
+        padding: 2px 6px;
+    }
+    .timeline-container-wrapper {
+        margin-bottom: 30px;
+    }
 </style>
 {% endblock %}
 
@@ -152,10 +167,30 @@
                         </span>
                     </div>
                     
-                    <!-- Authenticity timeline -->
-                    <div id="timeline" class="timeline-container">
-                        <div id="timeline-marker" class="timeline-marker"></div>
-                        <!-- Segments will be added dynamically by JavaScript -->
+                    <!-- Rapid Model Timeline (2 seconds) -->
+                    <div class="timeline-container-wrapper">
+                        <div class="model-title">
+                            <span>Rapid Model Analysis</span>
+                            <span class="badge bg-info model-badge">2-second intervals</span>
+                            <span class="badge bg-primary model-badge">94% accuracy</span>
+                        </div>
+                        <div id="rapid-timeline" class="timeline-container">
+                            <div id="rapid-timeline-marker" class="timeline-marker"></div>
+                            <!-- Segments will be added dynamically by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Deep Model Timeline (60 seconds) -->
+                    <div class="timeline-container-wrapper">
+                        <div class="model-title">
+                            <span>Deep Model Analysis</span>
+                            <span class="badge bg-info model-badge">60-second analysis</span>
+                            <span class="badge bg-primary model-badge">98% accuracy</span>
+                        </div>
+                        <div id="deep-timeline" class="timeline-container">
+                            <div id="deep-timeline-marker" class="timeline-marker"></div>
+                            <!-- Segments will be added dynamically by JavaScript -->
+                        </div>
                     </div>
                     
                     <!-- Legend -->
@@ -257,13 +292,15 @@
                             </div>
                             
                             <div class="mb-4">
-                                <h6>Detection Models Used</h6>
+                                <h6>Detection Models</h6>
                                 <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span>Rapid Model (2s intervals)</span>
+                                    <span>Rapid Model</span>
+                                    <span class="badge bg-info me-1">2s intervals</span>
                                     <span class="badge bg-primary">94% accuracy</span>
                                 </div>
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span>Deep Model (60s analysis)</span>
+                                    <span>Deep Model</span>
+                                    <span class="badge bg-info me-1">60s analysis</span>
                                     <span class="badge bg-primary">98% accuracy</span>
                                 </div>
                             </div>
@@ -303,17 +340,32 @@
         const speedSelect = document.getElementById('playback-speed');
         const currentTimeDisplay = document.getElementById('current-time');
         const durationDisplay = document.getElementById('duration');
-        const timelineElement = document.getElementById('timeline');
-        const timelineMarker = document.getElementById('timeline-marker');
+        const rapidTimelineElement = document.getElementById('rapid-timeline');
+        const rapidTimelineMarker = document.getElementById('rapid-timeline-marker');
+        const deepTimelineElement = document.getElementById('deep-timeline');
+        const deepTimelineMarker = document.getElementById('deep-timeline-marker');
         
         // Sample data for demonstration - in a real app, this would come from your backend
-        const segments = [
-            { start: 0, end: 12, type: 'real', confidence: 96 },
-            { start: 12, end: 18, type: 'fake', confidence: 87 },
-            { start: 18, end: 32, type: 'real', confidence: 95 },
-            { start: 32, end: 48, type: 'fake', confidence: 92 },
-            { start: 48, end: 60, type: 'real', confidence: 97 },
-            { start: 60, end: 83, type: 'real', confidence: 98 }
+        // Rapid model segments (2s intervals - more detailed)
+        const rapidSegments = [
+            { start: 0, end: 8, type: 'real', confidence: 96 },
+            { start: 8, end: 14, type: 'fake', confidence: 87 },
+            { start: 14, end: 18, type: 'real', confidence: 91 },
+            { start: 18, end: 26, type: 'real', confidence: 95 },
+            { start: 26, end: 32, type: 'real', confidence: 93 },
+            { start: 32, end: 40, type: 'fake', confidence: 92 },
+            { start: 40, end: 48, type: 'fake', confidence: 89 },
+            { start: 48, end: 56, type: 'real', confidence: 97 },
+            { start: 56, end: 62, type: 'real', confidence: 95 },
+            { start: 62, end: 70, type: 'real', confidence: 98 },
+            { start: 70, end: 76, type: 'real', confidence: 97 },
+            { start: 76, end: 83, type: 'real', confidence: 94 }
+        ];
+        
+        // Deep model segments (60s intervals - more accurate but less granular)
+        const deepSegments = [
+            { start: 0, end: 60, type: 'real', confidence: 98 },
+            { start: 60, end: 83, type: 'real', confidence: 99 }
         ];
         
         // Set up audio player
@@ -322,16 +374,18 @@
             durationDisplay.textContent = formatTime(audioPlayer.duration);
             
             // Create timeline segments once we know the duration
-            renderSegments(segments, audioPlayer.duration);
+            renderSegments(rapidSegments, audioPlayer.duration, rapidTimelineElement);
+            renderSegments(deepSegments, audioPlayer.duration, deepTimelineElement);
         });
         
         // Update current time
         audioPlayer.addEventListener('timeupdate', function() {
             currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
             
-            // Update marker position
+            // Update marker positions
             const percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-            timelineMarker.style.left = `${percent}%`;
+            rapidTimelineMarker.style.left = `${percent}%`;
+            deepTimelineMarker.style.left = `${percent}%`;
         });
         
         // Play/Pause functionality
@@ -372,7 +426,7 @@
         }
         
         // Render segments on the timeline
-        function renderSegments(segments, duration) {
+        function renderSegments(segments, duration, timelineElement) {
             if (!duration) return;
             
             segments.forEach((segment, index) => {
@@ -433,13 +487,16 @@
             });
         }
         
-        // Make timeline clickable for seeking
-        timelineElement.addEventListener('click', function(e) {
-            const rect = this.getBoundingClientRect();
-            const clickPosition = (e.clientX - rect.left) / rect.width;
-            if (audioPlayer.duration) {
-                audioPlayer.currentTime = clickPosition * audioPlayer.duration;
-            }
+        // Make timelines clickable for seeking
+        const timelineElements = [rapidTimelineElement, deepTimelineElement];
+        timelineElements.forEach(timeline => {
+            timeline.addEventListener('click', function(e) {
+                const rect = this.getBoundingClientRect();
+                const clickPosition = (e.clientX - rect.left) / rect.width;
+                if (audioPlayer.duration) {
+                    audioPlayer.currentTime = clickPosition * audioPlayer.duration;
+                }
+            });
         });
     });
 </script>
