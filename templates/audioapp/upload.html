@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Audio - Audio Sharing Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <h1 class="mb-4">Upload Audio File</h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">Title</label>
+                        <input type="text" name="title" class="form-control" id="id_title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        <textarea name="description" class="form-control" id="id_description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_file" class="form-label">Audio File</label>
+                        <input type="file" name="file" class="form-control" id="id_file" accept="audio/*" required>
+                        <div class="form-text">Supported formats: MP3, WAV, OGG, etc.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_artist" class="form-label">Artist (optional)</label>
+                        <input type="text" name="artist" class="form-control" id="id_artist">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_album" class="form-label">Album (optional)</label>
+                        <input type="text" name="album" class="form-control" id="id_album">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_genre" class="form-label">Genre (optional)</label>
+                        <input type="text" name="genre" class="form-control" id="id_genre">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_tags" class="form-label">Tags (optional)</label>
+                        <input type="text" name="tags" class="form-control" id="id_tags">
+                        <div class="form-text">Enter tags separated by commas</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="is_public" class="form-check-input" id="id_is_public" checked>
+                        <label class="form-check-label" for="id_is_public">Make this file public</label>
+                        <div class="form-text">If checked, this file will be visible to everyone. If unchecked, only you can see it.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

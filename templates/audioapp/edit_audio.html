@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ audio.title }} - VoiceGuard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <h1 class="mb-4">Edit Audio File</h1>
+            
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label">Title</label>
+                            <input type="text" name="title" class="form-control" id="id_title" value="{{ form.title.value }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" class="form-control" id="id_description" rows="3">{{ form.description.value }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_file" class="form-label">Audio File (Optional - leave blank to keep current file)</label>
+                            <input type="file" name="file" class="form-control" id="id_file" accept="audio/*">
+                            <div class="form-text">Current file: {{ audio.file.name }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_artist" class="form-label">Artist (optional)</label>
+                            <input type="text" name="artist" class="form-control" id="id_artist" value="{{ form.artist.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_album" class="form-label">Album (optional)</label>
+                            <input type="text" name="album" class="form-control" id="id_album" value="{{ form.album.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_genre" class="form-label">Genre (optional)</label>
+                            <input type="text" name="genre" class="form-control" id="id_genre" value="{{ form.genre.value|default:'' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_tags" class="form-label">Tags (optional)</label>
+                            <input type="text" name="tags" class="form-control" id="id_tags" value="{{ form.tags.value|default:'' }}">
+                            <div class="form-text">Enter tags separated by commas</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="is_public" class="form-check-input" id="id_is_public" {% if form.is_public.value %}checked{% endif %}>
+                            <label class="form-check-label" for="id_is_public">Make this file public</label>
+                            <div class="form-text">If checked, this file will be visible to everyone. If unchecked, only you can see it.</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'audio_detail' audio.id %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

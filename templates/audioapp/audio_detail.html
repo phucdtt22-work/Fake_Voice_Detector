@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ audio.title }} - VoiceGuard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        position: relative;
+        height: 30px;
+        margin: 10px 0 20px;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+    }
+    .segment {
+        position: absolute;
+        height: 100%;
+        opacity: 0.9;
+        border-radius: 4px;
+    }
+    .segment-real {
+        background-color: rgba(25, 135, 84, 0.6);
+    }
+    .segment-fake {
+        background-color: rgba(220, 53, 69, 0.6);
+    }
+    .segment-label {
+        position: absolute;
+        top: 100%;
+        font-size: 10px;
+        color: #666;
+        transform: translateX(-50%);
+    }
+    .timeline-marker {
+        position: absolute;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background-color: #0d6efd;
+        z-index: 10;
+        transition: left 0.1s linear;
+    }
+    .confidence-badge {
+        position: absolute;
+        top: -20px;
+        transform: translateX(-50%);
+        font-size: 10px;
+        padding: 2px 5px;
+        border-radius: 3px;
+        color: white;
+        z-index: 10;
+    }
+    .playback-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    .playback-speed {
+        width: 90px;
+    }
+    .time-display {
+        font-family: monospace;
+        font-size: 14px;
+        background-color: #f8f9fa;
+        padding: 5px 10px;
+        border-radius: 4px;
+    }
+    .detection-legend {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-top: 10px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 14px;
+    }
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 3px;
+    }
+    .audio-player {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h1 class="mb-2">{{ audio.title }}</h1>
+                    <p class="text-muted">Uploaded on {{ audio.upload_date|date:"F j, Y" }} at {{ audio.upload_date|time:"g:i A" }}</p>
+                </div>
+                
+                {% if user.is_authenticated and user.id == audio.user_id %}
+                <div>
+                    <a href="{% url 'edit_audio' audio.id %}" class="btn btn-outline-warning">
+                        <i class="bi bi-pencil-square me-1"></i>Edit
+                    </a>
+                    <a href="{% url 'delete_audio' audio.id %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Voice Authentication Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Overall result -->
+                    <div class="alert {% if audio.is_public %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center mb-4">
+                        <i class="bi {% if audio.is_public %}bi-exclamation-triangle-fill{% else %}bi-shield-check{% endif %} me-2" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <strong>Analysis Result:</strong> 
+                            {% if audio.is_public %}
+                            This voice recording contains segments identified as deepfake with {{ audio.confidence|default:"87" }}% confidence.
+                            {% else %}
+                            This voice recording appears to be authentic with {{ audio.confidence|default:"96" }}% confidence.
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Audio player with controls -->
+                    <audio id="audio-player" class="audio-player" controls>
+                        <source src="{{ audio.get_file_url }}" type="{{ audio.file_type|default:'audio/mpeg' }}">
+                        Your browser does not support the audio element.
+                    </audio>
+                    
+                    <div class="playback-controls">
+                        <button id="play-button" class="btn btn-primary">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                        <select id="playback-speed" class="form-select form-select-sm playback-speed">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x</option>
+                        </select>
+                        <span class="time-display">
+                            <span id="current-time">00:00</span> / <span id="duration">00:00</span>
+                        </span>
+                    </div>
+                    
+                    <!-- Authenticity timeline -->
+                    <div id="timeline" class="timeline-container">
+                        <div id="timeline-marker" class="timeline-marker"></div>
+                        <!-- Segments will be added dynamically by JavaScript -->
+                    </div>
+                    
+                    <!-- Legend -->
+                    <div class="detection-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: rgba(25, 135, 84, 0.6);"></div>
+                            <span>Authentic Voice</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: rgba(220, 53, 69, 0.6);"></div>
+                            <span>Detected Deepfake</span>
+                        </div>
+                        <div class="ms-auto">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Hover over segments to see confidence scores
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Details section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Recording Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <h6>Description</h6>
+                                <p class="mb-0">
+                                    {% if audio.description %}
+                                        {{ audio.description }}
+                                    {% else %}
+                                        <em>No description provided</em>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <h6>Duration</h6>
+                                    <p class="mb-0">{{ audio.duration|default:"01:23" }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>File Size</h6>
+                                    <p class="mb-0">{{ audio.file_size|filesizeformat|default:"2.4 MB" }}</p>
+                                </div>
+                                {% if audio.artist %}
+                                <div class="col-md-6">
+                                    <h6>Speaker</h6>
+                                    <p class="mb-0">{{ audio.artist }}</p>
+                                </div>
+                                {% endif %}
+                                <div class="col-md-6">
+                                    <h6>Source</h6>
+                                    <p class="mb-0">{{ audio.album|default:"Phone Call" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mt-4 mt-md-0">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Analysis Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="me-3">
+                                            <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                                <i class="bi bi-person-check text-success" style="font-size: 24px;"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Authentic Parts</div>
+                                            <div class="fw-bold">78%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="me-3">
+                                            <div class="rounded-circle bg-danger bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                                <i class="bi bi-robot text-danger" style="font-size: 24px;"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Deepfake Parts</div>
+                                            <div class="fw-bold">22%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <h6>Detection Models Used</h6>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <span>Rapid Model (2s intervals)</span>
+                                    <span class="badge bg-primary">94% accuracy</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Deep Model (60s analysis)</span>
+                                    <span class="badge bg-primary">98% accuracy</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h6>Key Findings</h6>
+                                <ul class="mb-0">
+                                    <li>Detected voice manipulation at 0:32-0:48</li>
+                                    <li>Natural speech pattern inconsistencies</li>
+                                    <li>Formant frequency anomalies detected</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'my_audio_files' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to My Analyses
+                </a>
+                <a href="#" class="btn btn-primary">
+                    <i class="bi bi-download me-1"></i>Download Analysis Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const audioPlayer = document.getElementById('audio-player');
+        const playButton = document.getElementById('play-button');
+        const speedSelect = document.getElementById('playback-speed');
+        const currentTimeDisplay = document.getElementById('current-time');
+        const durationDisplay = document.getElementById('duration');
+        const timelineElement = document.getElementById('timeline');
+        const timelineMarker = document.getElementById('timeline-marker');
+        
+        // Sample data for demonstration - in a real app, this would come from your backend
+        const segments = [
+            { start: 0, end: 12, type: 'real', confidence: 96 },
+            { start: 12, end: 18, type: 'fake', confidence: 87 },
+            { start: 18, end: 32, type: 'real', confidence: 95 },
+            { start: 32, end: 48, type: 'fake', confidence: 92 },
+            { start: 48, end: 60, type: 'real', confidence: 97 },
+            { start: 60, end: 83, type: 'real', confidence: 98 }
+        ];
+        
+        // Set up audio player
+        audioPlayer.addEventListener('loadedmetadata', function() {
+            // Update duration display
+            durationDisplay.textContent = formatTime(audioPlayer.duration);
+            
+            // Create timeline segments once we know the duration
+            renderSegments(segments, audioPlayer.duration);
+        });
+        
+        // Update current time
+        audioPlayer.addEventListener('timeupdate', function() {
+            currentTimeDisplay.textContent = formatTime(audioPlayer.currentTime);
+            
+            // Update marker position
+            const percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            timelineMarker.style.left = `${percent}%`;
+        });
+        
+        // Play/Pause functionality
+        playButton.addEventListener('click', function() {
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                playButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+            } else {
+                audioPlayer.pause();
+                playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+            }
+        });
+        
+        // Sync play button with audio player state
+        audioPlayer.addEventListener('play', function() {
+            playButton.innerHTML = '<i class="bi bi-pause-fill"></i>';
+        });
+        
+        audioPlayer.addEventListener('pause', function() {
+            playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+        });
+        
+        audioPlayer.addEventListener('ended', function() {
+            playButton.innerHTML = '<i class="bi bi-play-fill"></i>';
+        });
+        
+        // Playback speed
+        speedSelect.addEventListener('change', function() {
+            audioPlayer.playbackRate = parseFloat(this.value);
+        });
+        
+        // Format time in mm:ss
+        function formatTime(time) {
+            if (isNaN(time)) return "00:00";
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Render segments on the timeline
+        function renderSegments(segments, duration) {
+            if (!duration) return;
+            
+            segments.forEach((segment, index) => {
+                const startPercent = (segment.start / duration) * 100;
+                const endPercent = (segment.end / duration) * 100;
+                const width = endPercent - startPercent;
+                
+                // Create segment element
+                const segmentEl = document.createElement('div');
+                segmentEl.className = `segment segment-${segment.type}`;
+                segmentEl.style.left = `${startPercent}%`;
+                segmentEl.style.width = `${width}%`;
+                segmentEl.setAttribute('data-confidence', segment.confidence);
+                
+                // Add confidence badge
+                const confidenceBadge = document.createElement('div');
+                confidenceBadge.className = 'confidence-badge';
+                confidenceBadge.style.left = '50%';
+                confidenceBadge.style.backgroundColor = segment.type === 'real' ? '#198754' : '#dc3545';
+                confidenceBadge.textContent = `${segment.confidence}%`;
+                confidenceBadge.style.opacity = 0;
+                segmentEl.appendChild(confidenceBadge);
+                
+                // Hover effect to show confidence
+                segmentEl.addEventListener('mouseenter', () => {
+                    confidenceBadge.style.opacity = 1;
+                });
+                segmentEl.addEventListener('mouseleave', () => {
+                    confidenceBadge.style.opacity = 0;
+                });
+                
+                // Add segment times
+                if (index === 0 || segments[index-1].type !== segment.type) {
+                    const label = document.createElement('span');
+                    label.className = 'segment-label';
+                    label.style.left = `${startPercent}%`;
+                    label.textContent = formatTime(segment.start);
+                    timelineElement.appendChild(label);
+                }
+                
+                if (index === segments.length - 1 || segments[index+1].type !== segment.type) {
+                    const label = document.createElement('span');
+                    label.className = 'segment-label';
+                    label.style.left = `${endPercent}%`;
+                    label.textContent = formatTime(segment.end);
+                    timelineElement.appendChild(label);
+                }
+                
+                // Click on segment to seek
+                segmentEl.addEventListener('click', function(e) {
+                    const rect = timelineElement.getBoundingClientRect();
+                    const clickPosition = (e.clientX - rect.left) / rect.width;
+                    const seekTime = clickPosition * duration;
+                    audioPlayer.currentTime = seekTime;
+                });
+                
+                timelineElement.appendChild(segmentEl);
+            });
+        }
+        
+        // Make timeline clickable for seeking
+        timelineElement.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const clickPosition = (e.clientX - rect.left) / rect.width;
+            if (audioPlayer.duration) {
+                audioPlayer.currentTime = clickPosition * audioPlayer.duration;
+            }
+        });
+    });
+</script>
+{% endblock %}

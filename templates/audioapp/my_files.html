@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}My Analyses - VoiceGuard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>My Voice Analyses</h1>
+                <a href="{% url 'upload_audio' %}" class="btn btn-primary">
+                    <i class="bi bi-upload me-1"></i>Upload New File
+                </a>
+            </div>
+            
+            {% if audio_files %}
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>File Name</th>
+                                        <th>Result</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for audio in audio_files %}
+                                        <tr>
+                                            <td>{{ audio.upload_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                <a href="{% url 'audio_detail' audio.id %}" class="text-decoration-none">
+                                                    {{ audio.title }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                {% if audio.is_public %}
+                                                <span class="badge bg-danger">Deepfake</span>
+                                                {% else %}
+                                                <span class="badge bg-success">Authentic</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if audio.is_public %}
+                                                <span class="badge bg-primary">Public</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Private</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{% url 'audio_detail' audio.id %}" class="btn btn-outline-primary">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'edit_audio' audio.id %}" class="btn btn-outline-warning">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </a>
+                                                    <a href="{% url 'delete_audio' audio.id %}" class="btn btn-outline-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center p-5">
+                        <div class="mb-3 display-1 text-muted">
+                            <i class="bi bi-file-earmark-music"></i>
+                        </div>
+                        <h5>No Audio Files Yet</h5>
+                        <p class="text-muted">You haven't uploaded any audio files for analysis</p>
+                        <a href="{% url 'upload_audio' %}" class="btn btn-primary">Upload Your First Audio</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
